@@ -17,19 +17,22 @@ st.set_page_config(
     layout="wide",
 )
 
-# --------------------------------------------------------------------------- #
 # Dataset configuration
 # Each depth entry: (EE band name, display label, output column name)
-# --------------------------------------------------------------------------- #
 DATASETS = {
     "ERA5-Land": {
         "id": "ECMWF/ERA5_LAND/DAILY_AGGR",
         "source": "ERA5-Land (ECMWF)",
         "caption": "Reanalysis, daily, ~11 km, 1950 – present",
+        "description": (
+            "ERA5, developed by the European Centre for Medium-Range Weather Forecasts (ECMWF), "
+            "is a global reanalysis dataset that provides historical estimates of soil temperature "
+            "at multiple soil depths at 11 km spatial resolution."
+        ),
         "resolution": "~0.1° (≈9–11 km)",
         "scale": 11132,
-        "daily": True,              # already daily images
-        "max_days_per_chunk": None,  # no extra cap
+        "daily": True,            
+        "max_days_per_chunk": None,
         "start": date(1950, 1, 1),
         "lookback_days": 365,
         "slug": "era5land",
@@ -44,14 +47,18 @@ DATASETS = {
         "id": "NASA/SMAP/SPL4SMGP/008",
         "source": "SMAP L4 (NASA)",
         "caption": "Model + satellite assimilation, 3-hourly → daily, ~9–11 km, 2015 – present",
+        "description": (
+            "The Soil Moisture Active Passive (SMAP) mission, developed by NASA, provides "
+            "satellite-based observations of soil moisture and soil freeze/thaw conditions. "
+            "It provides soil temperature data at multiple depths at 9 km spatial resolution."
+        ),
         "resolution": "9 km EASE-Grid (served by Earth Engine at ~11 km)",
         "scale": 11000,
-        "daily": False,             # 3-hourly images, aggregated to daily means
-        "max_days_per_chunk": 180,  # keeps 3-hourly → daily computation within EE limits
+        "daily": False,         
+        "max_days_per_chunk": 180, 
         "start": date(2015, 3, 31),
         "lookback_days": 180,
         "slug": "smap_l4",
-        # Depth ranges follow the Catchment land-model soil temperature layers (approximate)
         "depths": [
             ("soil_temp_layer1", "Layer 1: 0–10 cm", "soil_temp_L1_0_10cm_C"),
             ("soil_temp_layer2", "Layer 2: 10–29 cm", "soil_temp_L2_10_29cm_C"),
@@ -98,9 +105,7 @@ LON_ALIASES = ["lon", "lng", "long", "longitude", "x"]
 ID_ALIASES = ["id", "point_id", "name", "site", "station"]
 
 
-# --------------------------------------------------------------------------- #
 # Earth Engine setup
-# --------------------------------------------------------------------------- #
 def _service_account_info():
     """Return the service-account dict from Streamlit secrets, or None."""
     try:
@@ -133,10 +138,8 @@ def latest_available_date(ds_key: str) -> date:
         return date.today() - timedelta(days=90)
     return pd.to_datetime(ms, unit="ms").date()
 
-
-# --------------------------------------------------------------------------- #
 # Input helpers
-# --------------------------------------------------------------------------- #
+
 def guess_column(columns, aliases):
     lookup = {str(c).lower().strip(): c for c in columns}
     for alias in aliases:
@@ -163,10 +166,8 @@ def clean_points(raw: pd.DataFrame, lat_col, lon_col, id_col):
 
     return pts.reset_index(drop=True), n_before - len(pts)
 
-
-# --------------------------------------------------------------------------- #
 # Data extraction
-# --------------------------------------------------------------------------- #
+
 def daily_collection(ds_key: str, start: str, end_exclusive: str) -> ee.ImageCollection:
     """Daily images with soil-temperature bands for [start, end_exclusive)."""
     cfg = DATASETS[ds_key]
@@ -175,7 +176,6 @@ def daily_collection(ds_key: str, start: str, end_exclusive: str) -> ee.ImageCol
     if cfg["daily"]:
         return coll
 
-    # 3-hourly → daily mean (UTC days)
     proj = ee.Image(ee.ImageCollection(cfg["id"]).first()).select(bands[0]).projection()
     start_d = ee.Date(start)
     n_days = ee.Date(end_exclusive).difference(start_d, "day").round().int()
@@ -253,9 +253,7 @@ def fetch_soil_temperature(ds_key: str, points_df: pd.DataFrame, start: date, en
     return df[out_cols].sort_values(["point_id", "date"]).reset_index(drop=True)
 
 
-# --------------------------------------------------------------------------- #
 # Map helpers
-# --------------------------------------------------------------------------- #
 @st.cache_data(ttl=3600, show_spinner=False)
 def mean_tile_url(ds_key: str, band: str, start: str, end_exclusive: str, vmin: float, vmax: float) -> str:
     """Tile URL for the period-mean soil temperature (°C) of one depth."""
@@ -331,9 +329,8 @@ def build_map(ds_key, tile_url, band, points_df, point_means, vmin, vmax):
     return m
 
 
-# --------------------------------------------------------------------------- #
 # Logo
-# --------------------------------------------------------------------------- #
+
 LOGO_PATH = Path(__file__).parent / "assets" / "eq.png"
 
 
@@ -354,10 +351,8 @@ def sidebar_logo(path: Path):
         unsafe_allow_html=True,
     )
 
-
-# --------------------------------------------------------------------------- #
 # App
-# --------------------------------------------------------------------------- #
+
 st.title("Soil Temperature Explorer")
 st.caption("Daily soil temperature at multiple depths from ERA5-Land (ECMWF) or SMAP L4 (NASA), "
            "accessed through Google Earth Engine.")
@@ -374,12 +369,9 @@ with st.sidebar:
     # 1. Dataset
     st.header("1. Dataset")
     ds_options = list(DATASETS)
-    ds_key = st.radio(
-        "Soil temperature source",
-        ds_options,
-        captions=[DATASETS[k]["caption"] for k in ds_options],
-    )
+    ds_key = st.selectbox("Soil temperature source", ds_options)
     cfg = DATASETS[ds_key]
+    st.caption(cfg["description"])
 
     try:
         latest = latest_available_date(ds_key)
@@ -455,7 +447,7 @@ with st.sidebar:
     fetch_clicked = st.button(f"Fetch {ds_key} soil temperature", type="primary", use_container_width=True)
 
 
-# ------------------------------ Fetch data -------------------------------- #
+# Fetch data
 if fetch_clicked:
     if points_df is None or points_df.empty:
         st.sidebar.error("Enter a coordinate or upload a CSV first.")
@@ -488,7 +480,7 @@ if fetch_clicked:
                 st.error(f"Something went wrong while fetching data: {e}")
 
 
-# ------------------------------- Results ---------------------------------- #
+# Results
 result = st.session_state.get("result")
 if result is None:
     st.info("Choose a dataset, location and date range in the sidebar, then click **Fetch**.")
