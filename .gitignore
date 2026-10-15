@@ -1,0 +1,6 @@
+.streamlit/secrets.toml
+*.json
+venv/
+__pycache__/
+check.py
+test.ipynb

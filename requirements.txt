@@ -1,0 +1,5 @@
+streamlit>=1.37
+earthengine-api
+pandas
+folium
+streamlit-folium
