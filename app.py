@@ -17,6 +17,46 @@ st.set_page_config(
     layout="wide",
 )
 
+# st.markdown("""
+# <style>
+# div.stButton > button,
+# div.stLinkButton > a {
+#     background-color: white !important;
+#     color: black !important;
+#     border: 1px solid #d0d0d0 !important;
+#     border-radius: 6px;
+# }
+# </style>
+# """, unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+div.stButton > button,
+div.stLinkButton > a,
+div.stDownloadButton > button {
+    background-color: white !important;
+    color: black !important;
+    border: 1px solid #d0d0d0 !important;
+    border-radius: 6px !important;
+}
+
+div.stButton > button:hover,
+div.stLinkButton > a:hover,
+div.stDownloadButton > button:hover {
+    background-color: #f5f5f5 !important;
+    color: black !important;
+    border-color: #b0b0b0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+doc_url = "https://docs.google.com/document/d/1bHeNpv7GcWcCjnVkWAnBPvKTbFXCp49-kQT_vGTRk8g/edit?tab=t.0"
+
+left, right = st.columns([4, 1])
+
+with right:
+    st.link_button("Read the Doc here", doc_url, use_container_width=True)
+
 # Dataset configuration
 # Each depth entry: (EE band name, display label, output column name)
 DATASETS = {
@@ -559,6 +599,7 @@ st.dataframe(
         col: st.column_config.NumberColumn(COLUMN_LABEL[col], format="%.2f") for col in TEMP_COLS
     },
 )
+
 st.download_button(
     "⬇️ Download CSV",
     data=df.to_csv(index=False).encode("utf-8"),
